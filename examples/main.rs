@@ -1,4 +1,4 @@
-use testing_rust::AudioController;
+use windows_volume_control::AudioController;
 
 fn main() {
     unsafe {
