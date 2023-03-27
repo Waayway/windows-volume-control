@@ -12,7 +12,7 @@ pub trait Session {
 pub struct EndPointSession {
     simple_audio_volume: IAudioEndpointVolume,
     name: String,
-    guid: GUID,
+    guid: GUID
 }
 impl EndPointSession {
     pub fn new(simple_audio_volume: IAudioEndpointVolume, name: String) -> Self {
@@ -24,7 +24,7 @@ impl EndPointSession {
         Self {
             simple_audio_volume: simple_audio_volume,
             name: name,
-            guid: guid,
+            guid: guid
         }
     }
 }
@@ -35,7 +35,7 @@ impl Session for EndPointSession {
     }
     unsafe fn getVolume(&self) -> f32 {
         self.simple_audio_volume
-            .GetMasterVolumeLevel()
+            .GetMasterVolumeLevelScalar()
             .unwrap_or_else(|err| {
                 eprintln!("ERROR: Couldn't get volume {err}");
                 0.0
@@ -43,7 +43,7 @@ impl Session for EndPointSession {
     }
     unsafe fn setVolume(&self, vol: f32) {
         self.simple_audio_volume
-            .SetMasterVolumeLevel(vol, &self.guid)
+            .SetMasterVolumeLevelScalar(vol, &self.guid)
             .unwrap_or_else(|err| {
                 eprintln!("ERROR: Couldn't set volume: {err}");
             });

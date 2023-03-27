@@ -1,12 +1,21 @@
-use session::{EndPointSession, Session, ApplicationSession};
-use std::process::exit;
-use windows::{Win32::{
-    Media::Audio::{
-        eMultimedia, eRender, Endpoints::IAudioEndpointVolume, IMMDevice, IMMDeviceEnumerator,
-        MMDeviceEnumerator, IAudioSessionManager2, IAudioSessionEnumerator, IAudioSessionControl2, IAudioSessionControl, ISimpleAudioVolume,
+use session::{ApplicationSession, EndPointSession, Session};
+use std::{process::exit, ptr::null_mut};
+use windows::{
+    core::Interface,
+    Win32::{
+        Foundation::{GetLastError, HINSTANCE},
+        Media::Audio::{
+            eMultimedia, eRender, Endpoints::IAudioEndpointVolume, IAudioSessionControl,
+            IAudioSessionControl2, IAudioSessionEnumerator, IAudioSessionManager2, IMMDevice,
+            IMMDeviceEnumerator, ISimpleAudioVolume, MMDeviceEnumerator,
+        },
+        System::{
+            Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED, CLSCTX_ALL},
+            ProcessStatus::K32GetProcessImageFileNameA,
+            Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ},
+        },
     },
-    System::{Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED}, Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ}, ProcessStatus::K32GetProcessImageFileNameA,}, Foundation::{HINSTANCE, GetLastError},
-}, core::Interface};
+};
 
 mod session;
 
@@ -56,18 +65,18 @@ impl AudioController {
                     exit(1);
                 }),
         );
-        let audio_enpoint_volume: IAudioEndpointVolume = self
+        let simple_audio_volume: IAudioEndpointVolume = self
             .default_device
             .clone()
             .unwrap()
-            .Activate(CLSCTX_INPROC_SERVER, None)
+            .Activate(CLSCTX_ALL, None)
             .unwrap_or_else(|err| {
-                eprintln!("ERROR: Couldn't get Enpoint volume control: {err}");
+                eprintln!("ERROR: Couldn't get Endpoint volume control: {err}");
                 exit(1);
             });
 
         self.sessions.push(Box::new(EndPointSession::new(
-            audio_enpoint_volume,
+            simple_audio_volume,
             "master".to_string(),
         )));
     }
@@ -83,21 +92,27 @@ impl AudioController {
             exit(1);
         });
 
-        let session_enumerator: IAudioSessionEnumerator = session_manager2.GetSessionEnumerator().unwrap_or_else(|err| {
-            eprintln!("ERROR: Couldnt get session enumerator... {err}");
-            exit(1);
-        });
+        let session_enumerator: IAudioSessionEnumerator = session_manager2
+            .GetSessionEnumerator()
+            .unwrap_or_else(|err| {
+                eprintln!("ERROR: Couldnt get session enumerator... {err}");
+                exit(1);
+            });
 
         for i in 0..session_enumerator.GetCount().unwrap() {
-            let normal_session_control: Option<IAudioSessionControl> = session_enumerator.GetSession(i).ok();
+            let normal_session_control: Option<IAudioSessionControl> =
+                session_enumerator.GetSession(i).ok();
             if normal_session_control.is_none() {
                 eprintln!("ERROR: Couldn't get session control of audio session...");
                 continue;
             }
 
-            let session_control: Option<IAudioSessionControl2> = normal_session_control.unwrap().cast().ok();
+            let session_control: Option<IAudioSessionControl2> =
+                normal_session_control.unwrap().cast().ok();
             if session_control.is_none() {
-                eprintln!("ERROR: Couldn't convert from normal session control to session control 2");
+                eprintln!(
+                    "ERROR: Couldn't convert from normal session control to session control 2"
+                );
                 continue;
             }
 
@@ -135,7 +150,9 @@ impl AudioController {
             let audio_control: ISimpleAudioVolume = match session_control.unwrap().cast() {
                 Ok(data) => data,
                 Err(err) => {
-                    eprintln!("ERROR: Couldn't get the simpleaudiovolume from session controller: {err}");
+                    eprintln!(
+                        "ERROR: Couldn't get the simpleaudiovolume from session controller: {err}"
+                    );
                     continue;
                 }
             };
@@ -143,4 +160,12 @@ impl AudioController {
             self.sessions.push(Box::new(application_session));
         }
     }
-}   
+
+    pub unsafe fn get_all_session_names(&self) -> Vec<String> {
+        self.sessions.iter().map(|i| i.getName()).collect()
+    }
+
+    pub unsafe fn get_session_by_name(&self, name: String) -> Option<&Box<dyn Session>> {
+        self.sessions.iter().find(|i| i.getName() == name)
+    }
+}
