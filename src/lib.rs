@@ -1,9 +1,7 @@
 use session::{ApplicationSession, EndPointSession, Session};
-use std::{process::exit, ptr::null_mut};
 use windows::{
     core::Interface,
     Win32::{
-        Foundation::{GetLastError, HINSTANCE},
         Media::Audio::{
             eMultimedia, eRender, Endpoints::IAudioEndpointVolume, IAudioSessionControl,
             IAudioSessionControl2, IAudioSessionEnumerator, IAudioSessionManager2, IMMDevice,

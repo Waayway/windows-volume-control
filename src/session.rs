@@ -5,6 +5,7 @@ use windows::Win32::Media::Audio::ISimpleAudioVolume;
 
 use std::process::exit;
 pub trait Session {
+    unsafe fn getAudioEndpointVolume(&self) -> Option<IAudioEndpointVolume>;
     unsafe fn getName(&self) -> String;
     unsafe fn getVolume(&self) -> f32;
     unsafe fn setVolume(&self, vol: f32);
@@ -33,6 +34,10 @@ impl EndPointSession {
 }
 
 impl Session for EndPointSession {
+    unsafe fn getAudioEndpointVolume(&self) -> Option<IAudioEndpointVolume> {
+        Some(self.simple_audio_volume.clone())
+    }
+
     unsafe fn getName(&self) -> String {
         self.name.clone()
     }
@@ -91,6 +96,10 @@ impl ApplicationSession {
 }
 
 impl Session for ApplicationSession {
+    unsafe fn getAudioEndpointVolume(&self) -> Option<IAudioEndpointVolume> {
+        None
+    }
+
     unsafe fn getName(&self) -> String {
         self.name.clone()
     }
