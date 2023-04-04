@@ -7,6 +7,8 @@ pub trait Session {
     unsafe fn getName(&self) -> String;
     unsafe fn getVolume(&self) -> f32;
     unsafe fn setVolume(&self, vol: f32);
+    unsafe fn getMute(&self) -> bool;
+    unsafe fn setMute(&self, mute: bool);
 }
 
 pub struct EndPointSession {
@@ -47,6 +49,22 @@ impl Session for EndPointSession {
             .unwrap_or_else(|err| {
                 eprintln!("ERROR: Couldn't set volume: {err}");
             });
+    }
+    unsafe fn setMute(&self, mute: bool) {
+        self.simple_audio_volume
+            .SetMute(mute, &self.guid)
+            .unwrap_or_else(|err| {
+                eprintln!("ERROR: Couldn't set mute: {err}");
+        });
+    }
+    unsafe fn getMute(&self) -> bool {
+        self.simple_audio_volume
+            .GetMute()
+            .unwrap_or_else(|err| {
+                eprintln!("ERROR: Couldn't get mute {err}");
+                false
+            })
+            .as_bool()
     }
 }
 
