@@ -1,3 +1,4 @@
+use windows::Win32::Foundation::BOOL;
 use windows::core::GUID;
 use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
 use windows::Win32::Media::Audio::ISimpleAudioVolume;
@@ -62,7 +63,7 @@ impl Session for EndPointSession {
             .GetMute()
             .unwrap_or_else(|err| {
                 eprintln!("ERROR: Couldn't get mute {err}");
-                false
+                BOOL(0)
             })
             .as_bool()
     }
@@ -107,5 +108,21 @@ impl Session for ApplicationSession {
             .unwrap_or_else(|err| {
                 eprintln!("ERROR: Couldn't set volume: {err}");
             });
+    }
+    unsafe fn setMute(&self, mute: bool) {
+        self.simple_audio_volume
+            .SetMute(mute, &self.guid)
+            .unwrap_or_else(|err| {
+                eprintln!("ERROR: Couldn't set mute: {err}");
+        });
+    }
+    unsafe fn getMute(&self) -> bool {
+        self.simple_audio_volume
+            .GetMute()
+            .unwrap_or_else(|err| {
+                eprintln!("ERROR: Couldn't get mute {err}");
+                BOOL(0)
+            })
+            .as_bool()
     }
 }
