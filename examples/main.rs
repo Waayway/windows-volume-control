@@ -4,7 +4,7 @@ use windows_volume_control::AudioController;
 
 fn main() {
     unsafe {
-        let mut controller = AudioController::init();
+        let mut controller = AudioController::init(None);
         controller.GetSessions();
         controller.GetDefaultAudioEnpointVolumeControl();
         controller.GetAllProcessSessions();

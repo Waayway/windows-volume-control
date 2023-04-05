@@ -8,12 +8,13 @@ use windows::{
             IMMDeviceEnumerator, ISimpleAudioVolume, MMDeviceEnumerator,
         },
         System::{
-            Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED, CLSCTX_ALL},
+            Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED, CLSCTX_ALL, COINIT_APARTMENTTHREADED},
             ProcessStatus::K32GetProcessImageFileNameA,
             Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ},
         },
     },
 };
+use std::process::exit;
 
 mod session;
 
@@ -23,9 +24,21 @@ pub struct AudioController {
     sessions: Vec<Box<dyn Session>>,
 }
 
+pub enum CoinitMode {
+    MultiTreaded,
+    ApartmentThreaded
+}
+
 impl AudioController {
-    pub unsafe fn init() -> Self {
-        CoInitializeEx(None, COINIT_MULTITHREADED).unwrap_or_else(|err| {
+    pub unsafe fn init(coinit_mode: Option<CoinitMode>) -> Self {
+        let mut coinit: windows::Win32::System::Com::COINIT = COINIT_MULTITHREADED;
+        if let Some(x) = coinit_mode {
+            match x {
+                CoinitMode::ApartmentThreaded   => {coinit = COINIT_APARTMENTTHREADED},
+                CoinitMode::MultiTreaded        => {coinit = COINIT_MULTITHREADED}
+            }
+        }
+        CoInitializeEx(None, coinit).unwrap_or_else(|err| {
             eprintln!("ERROR: Couldn't initialize windows connection: {err}");
             exit(1);
         });
