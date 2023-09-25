@@ -1,6 +1,6 @@
 [package]
 name = "windows-volume-control"
-version = "0.1.0"
+version = "0.1.1"
 homepage = "https://github.com/Waayway/windows-volume-control"
 documentation = "https://docs.rs/windows-volume-control"
 repository = "https://github.com/Waayway/windows-volume-control"
