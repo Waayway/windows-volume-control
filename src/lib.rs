@@ -3,7 +3,7 @@ use windows::{
     core::Interface,
     Win32::{
         Media::Audio::{
-            eMultimedia, eRender, Endpoints::IAudioEndpointVolume, IAudioSessionControl,
+            eMultimedia, eRender, eCapture, Endpoints::IAudioEndpointVolume, IAudioSessionControl,
             IAudioSessionControl2, IAudioSessionEnumerator, IAudioSessionManager2, IMMDevice,
             IMMDeviceEnumerator, ISimpleAudioVolume, MMDeviceEnumerator,
         },
@@ -20,6 +20,7 @@ mod session;
 
 pub struct AudioController {
     default_device: Option<IMMDevice>,
+    default_input_device: Option<IMMDevice>,
     imm_device_enumerator: Option<IMMDeviceEnumerator>,
     sessions: Vec<Box<dyn Session>>,
 }
@@ -45,6 +46,7 @@ impl AudioController {
 
         Self {
             default_device: None,
+            default_input_device: None,
             imm_device_enumerator: None,
             sessions: vec![],
         }
@@ -76,6 +78,18 @@ impl AudioController {
                     exit(1);
                 }),
         );
+
+        self.default_input_device = Some(
+            self.imm_device_enumerator
+                .clone()
+                .unwrap()
+                .GetDefaultAudioEndpoint(eCapture, eMultimedia)
+                .unwrap_or_else(|err| {
+                    eprintln!("ERROR: Couldn't get Default audio input endpoint {err}");
+                    exit(1);
+                }),
+        );
+
         let simple_audio_volume: IAudioEndpointVolume = self
             .default_device
             .clone()
@@ -86,9 +100,26 @@ impl AudioController {
                 exit(1);
             });
 
+
         self.sessions.push(Box::new(EndPointSession::new(
             simple_audio_volume,
             "master".to_string(),
+        )));    
+
+        let simple_mic_volume: IAudioEndpointVolume = self
+            .default_input_device
+            .clone()
+            .unwrap()
+            .Activate(CLSCTX_ALL, None)
+            .unwrap_or_else(|err| {
+                eprintln!("ERROR: Couldn't get Endpoint volume control: {err}");
+                exit(1);
+            });
+
+
+        self.sessions.push(Box::new(EndPointSession::new(
+            simple_mic_volume,
+            "mic".to_string(),
         )));
     }
 
@@ -179,4 +210,5 @@ impl AudioController {
     pub unsafe fn get_session_by_name(&self, name: String) -> Option<&Box<dyn Session>> {
         self.sessions.iter().find(|i| i.getName() == name)
     }
+
 }
