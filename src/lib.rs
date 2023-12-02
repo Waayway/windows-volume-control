@@ -202,7 +202,7 @@ impl AudioController {
             let mut name = str_filename;
             let mut counter = 2;
             while self.sessions.iter().any(|i| i.getName() == name) {
-                name = format!("{}{}", name, counter);
+                name = format!("{}({})", name, counter);
                 counter += 1;
             }
 
