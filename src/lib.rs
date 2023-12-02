@@ -198,7 +198,16 @@ impl AudioController {
                     continue;
                 }
             };
-            let application_session = ApplicationSession::new(audio_control, str_filename);
+            //loop through all sessions and check if the session name already exists, if it does, change name to name + 1
+            let mut name = str_filename;
+            let mut counter = 2;
+            while self.sessions.iter().any(|i| i.getName() == name) {
+                name = format!("{}{}", name, counter);
+                counter += 1;
+            }
+
+            let application_session = ApplicationSession::new(audio_control, name);
+
             self.sessions.push(Box::new(application_session));
         }
     }
