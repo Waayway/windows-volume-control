@@ -72,51 +72,50 @@ impl AudioController {
             return;
         }
 
-        self.default_device = Some(
-            match self.imm_device_enumerator
-                .clone()
-                .unwrap()
-                .GetDefaultAudioEndpoint(eRender, eMultimedia)
-            {
-                Ok(device) => device,
-                Err(err) => {
-                    eprintln!("ERROR: Couldn't get Default audio output endpoint {err}");
-                    return;
-                }
-            }
-        );
-
-        self.default_input_device = Some(
-            match self.imm_device_enumerator
-                .clone()
-                .unwrap()
-                .GetDefaultAudioEndpoint(eCapture, eMultimedia)
-            {
-                Ok(device) => device,
-                Err(err) => {
-                    eprintln!("ERROR: Couldn't get Default audio input endpoint {err}");
-                    return;
-                }
-            }
-        );
-
-        let simple_audio_volume: IAudioEndpointVolume = self
-            .default_device
+        self.default_device = match self.imm_device_enumerator
             .clone()
             .unwrap()
-            .Activate(CLSCTX_ALL, None)
-            .unwrap_or_else(|err| {
-                eprintln!("ERROR: Couldn't get Endpoint volume control: {err}");
-                exit(1);
-            });
+            .GetDefaultAudioEndpoint(eRender, eMultimedia)
+            {
+                Ok(device) => Some(device),
+                Err(err) => {
+                    eprintln!("ERROR: Couldn't get Default audio output endpoint {err}");
+                    None
+                }
+            };
+
+        self.default_input_device = match self.imm_device_enumerator
+            .clone()
+            .unwrap()
+            .GetDefaultAudioEndpoint(eCapture, eMultimedia)
+            {
+                Ok(device) => Some(device),
+                Err(err) => {
+                    eprintln!("ERROR: Couldn't get Default audio input endpoint {err}");
+                    None
+                }
+            };
+
+        if !self.default_device.is_none() {
+            let simple_audio_volume: IAudioEndpointVolume = self
+                .default_device
+                .clone()
+                .unwrap()
+                .Activate(CLSCTX_ALL, None)
+                .unwrap_or_else(|err| {
+                    eprintln!("ERROR: Couldn't get Endpoint volume control: {err}");
+                    exit(1);
+                });
 
 
-        self.sessions.push(Box::new(EndPointSession::new(
-            simple_audio_volume,
-            "master".to_string(),
-        )));    
+            self.sessions.push(Box::new(EndPointSession::new(
+                simple_audio_volume,
+                "master".to_string(),
+            )));    
+        }
 
-        let simple_mic_volume: IAudioEndpointVolume = self
+        if !self.default_input_device.is_none() {
+            let simple_mic_volume: IAudioEndpointVolume = self
             .default_input_device
             .clone()
             .unwrap()
@@ -126,11 +125,13 @@ impl AudioController {
                 exit(1);
             });
 
+            self.sessions.push(Box::new(EndPointSession::new(
+                simple_mic_volume,
+                "mic".to_string(),
+            )));
+        }
 
-        self.sessions.push(Box::new(EndPointSession::new(
-            simple_mic_volume,
-            "mic".to_string(),
-        )));
+
     }
 
     pub unsafe fn GetAllProcessSessions(&mut self) {
