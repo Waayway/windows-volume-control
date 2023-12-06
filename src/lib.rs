@@ -15,6 +15,7 @@ use windows::{
     },
 };
 use std::process::exit;
+use log::error;
 
 mod session;
 
@@ -41,6 +42,7 @@ impl AudioController {
         }
         CoInitializeEx(None, coinit).unwrap_or_else(|err| {
             eprintln!("ERROR: Couldn't initialize windows connection: {err}");
+            error!("ERROR: Couldn't initialize windows connection: {}", err);
             exit(1);
         });
 
@@ -56,6 +58,7 @@ impl AudioController {
             CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_INPROC_SERVER).unwrap_or_else(
                 |err| {
                     eprintln!("ERROR: Couldn't get Media device enumerator: {err}");
+                    error!("ERROR: Couldn't get Media device enumerator: {}", err);
                     exit(1);
                 },
             ),
@@ -65,29 +68,36 @@ impl AudioController {
     pub unsafe fn GetDefaultAudioEnpointVolumeControl(&mut self) {
         if self.imm_device_enumerator.is_none() {
             eprintln!("ERROR: Function called before creating enumerator");
+            error!("ERROR: Function called before creating enumerator");
             return;
         }
 
         self.default_device = Some(
-            self.imm_device_enumerator
+            match self.imm_device_enumerator
                 .clone()
                 .unwrap()
                 .GetDefaultAudioEndpoint(eRender, eMultimedia)
-                .unwrap_or_else(|err| {
-                    eprintln!("ERROR: Couldn't get Default audio endpoint {err}");
-                    exit(1);
-                }),
+            {
+                Ok(device) => device,
+                Err(err) => {
+                    eprintln!("ERROR: Couldn't get Default audio output endpoint {err}");
+                    return;
+                }
+            }
         );
 
         self.default_input_device = Some(
-            self.imm_device_enumerator
+            match self.imm_device_enumerator
                 .clone()
                 .unwrap()
                 .GetDefaultAudioEndpoint(eCapture, eMultimedia)
-                .unwrap_or_else(|err| {
+            {
+                Ok(device) => device,
+                Err(err) => {
                     eprintln!("ERROR: Couldn't get Default audio input endpoint {err}");
-                    exit(1);
-                }),
+                    return;
+                }
+            }
         );
 
         let simple_audio_volume: IAudioEndpointVolume = self
@@ -131,6 +141,7 @@ impl AudioController {
 
         let session_manager2: IAudioSessionManager2 = self.default_device.as_ref().unwrap().Activate(CLSCTX_INPROC_SERVER, None).unwrap_or_else(|err| {
             eprintln!("ERROR: Couldnt get AudioSessionManager for enumerating over processes... {err}");
+            error!("ERROR: Couldnt get AudioSessionManager for enumerating over processes... {}", err);
             exit(1);
         });
 
@@ -138,6 +149,7 @@ impl AudioController {
             .GetSessionEnumerator()
             .unwrap_or_else(|err| {
                 eprintln!("ERROR: Couldnt get session enumerator... {err}");
+                error!("ERROR: Couldnt get session enumerator... {}", err);
                 exit(1);
             });
 
@@ -146,6 +158,7 @@ impl AudioController {
                 session_enumerator.GetSession(i).ok();
             if normal_session_control.is_none() {
                 eprintln!("ERROR: Couldn't get session control of audio session...");
+                error!("ERROR: Couldn't get session control of audio session...");
                 continue;
             }
 
@@ -155,6 +168,7 @@ impl AudioController {
                 eprintln!(
                     "ERROR: Couldn't convert from normal session control to session control 2"
                 );
+                error!("ERROR: Couldn't convert from normal session control to session control 2");
                 continue;
             }
 
@@ -165,6 +179,7 @@ impl AudioController {
             let process = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, pid).ok();
             if process.is_none() {
                 eprintln!("ERROR: Couldn't get process information of process id {pid}");
+                error!("ERROR: Couldn't get process information of process id {}", pid);
                 continue;
             }
             let mut filename: [u8; 128] = [0; 128];
@@ -180,6 +195,7 @@ impl AudioController {
                 Ok(data) => data,
                 Err(err) => {
                     eprintln!("ERROR: Filename couldn't be converted to string, {err}");
+                    error!("ERROR: Filename couldn't be converted to string, {}", err);
                     continue;
                 }
             };
@@ -195,6 +211,9 @@ impl AudioController {
                     eprintln!(
                         "ERROR: Couldn't get the simpleaudiovolume from session controller: {err}"
                     );
+                    error!(
+                        "ERROR: Couldn't get the simpleaudiovolume from session controller: {}",
+                        err);
                     continue;
                 }
             };
